@@ -4,6 +4,17 @@ import random
 
 WINNING_SCORE = 4
 
+
+# Define a player
+class Player():
+    def __init__(self, name, logic):
+        self.name = name
+        self.logic = logic
+
+    def take_turn(self, board):
+        return self.logic(board)
+
+
 # Check the win condition based on the last played column
 def max_connecting(board):
     if np.all(board == 0):
@@ -55,11 +66,17 @@ def max_connecting(board):
 
 
 # Convert move order board to simpler 'colours' board
-def orders_to_colours(board):
-    # Turns are alternate so we can just find odd and even numbers
-    colour_board = board % 2
-    # Then subtract 1 from the zeroes to help with win condition checking
-    colour_board[ colour_board ==0 ] = -1
+def orders_to_colours(board, start_player):
+    # Turns are alternate so we need to convert evens to -1 and odds to 1, excluding zeroes
+    colour_board = np.copy(board)
+    for x in range(0, colour_board.shape[1]):
+        for y in range(0, colour_board.shape[0]):
+            if colour_board[y, x] > 0:
+                if colour_board[y, x] % 2 == 1:
+                    colour_board[y, x] = start_player
+                else:
+                    colour_board[y, x] = -start_player
+
     return colour_board
 
 # Print the board
@@ -196,7 +213,7 @@ def make_move_random(board):
 def make_move_human(board):
     # Human player, ask for input
     column_choice = -1
-    while column_choice < 0 or column_choice > board.shape[0]:
+    while column_choice < 0 or column_choice >= board.shape[0]:
         column_choice = int(input("Which column?"))
         # if column is already full, can't place here
         if board[0, column_choice] != 0:
@@ -206,35 +223,41 @@ def make_move_human(board):
     return column_choice
 
 
-def play_connect_four(start_player, show=True):
-    # Set up a board and initialise to zeros
-    # Not that board dimensions are [y, x]
-    board = np.zeros([6, 7], np.int)
+def play_connect_four(players, start_player, show=True):
 
-    human_player = True
+    # Set up a board and initialise to zeros
+    # Note that board dimensions are [y, x]
+    # We will have two versions of the board, one to record the order, and one to record the colours
+    board = np.zeros([6, 7], np.int)
+    colour_board = np.zeros([6, 7], np.int)
+
+    human_player = False
 
     if human_player:
         show = True
 
     if start_player == 0:
         active_player = -1
+        start_player = -1
     else:
         active_player = 1
+        start_player = 1
 
-    turn_count = 0
+    turn_count = 1
     max_connect = 0
     while max_connect < WINNING_SCORE:
         if show:
-            print_board(board)
+            print_board(colour_board)
 
         column_choice = -1
         if active_player == 1:
-            column_choice = make_move_AIv3(board)
+            column_choice = players[0].take_turn(colour_board)
         else:
             if human_player:
-                column_choice = make_move_human(board)
+                column_choice = make_move_human(colour_board)
             else:
-                column_choice = make_move_AIv2(board)
+                #column_choice = make_move_AIv2(colour_board)
+                column_choice = players[1].take_turn(colour_board)
 
         # find the lowest empty slot
         old_turn_count = turn_count
@@ -242,50 +265,64 @@ def play_connect_four(start_player, show=True):
             if turn_count == old_turn_count:
                 slot = board[y, column_choice]
                 if board[y, column_choice] == 0:
-                    board[y, column_choice] = active_player
+                    #board[y, column_choice] = active_player
+                    board[y, column_choice] = turn_count
                     active_player *= -1
                     turn_count += 1
             else:
                 break
 
-        max_connect = max_connecting(board)
+        colour_board = orders_to_colours(board, start_player)
+        max_connect = max_connecting(colour_board)
         # If board is full
-        if (np.all(board) != 0) & (max_connect < WINNING_SCORE):
+        if (np.all(colour_board) != 0) & (max_connect < WINNING_SCORE):
             max_connect = 2*WINNING_SCORE
 
     active_player *= -1
     if active_player == 1:
-        winner = "AI_new"
+        winner = players[0].name
+        loser = players[1].name
     elif active_player == -1:
-        winner = "AI"
-
+        winner = players[1].name
+        loser = players[0].name
     if max_connect == 2*WINNING_SCORE:
         winner = "Draw"
 
     #if show:
     print_board(board)
-    print("GAME OVER: " + winner)
+    print(colour_board)
+    print("GAME OVER: " + winner + " wins in " + str(turn_count) + " moves against " + loser)
 
-    return winner
+    return winner, turn_count
 
 
 # Main gameloop
 def main():
+    # Set number of games to play
     num_games = 100
-    AI_wins = 0
-    random_wins = 0
+
+    # Assign two players
+    players = []
+    players.append(Player("AIv3", make_move_AIv3))
+    players.append(Player("Random", make_move_random))
+
+    # Initialise stats
+    p1_wins = 0
+    p2_wins = 0
     draws = 0
+
+    # Play the games & update stats
     for i in range(num_games):
         start_player = i%2
-        winner = play_connect_four(start_player, False)
-        if winner == "AI_new":
-            AI_wins += 1
-        elif winner == "AI":
-            random_wins += 1
+        winner, turn_count = play_connect_four(players, start_player, False)
+        if winner == players[0].name:
+            p1_wins += 1
+        elif winner == players[1].name:
+            p2_wins += 1
         else:
             draws += 1
 
-    print(f"AI_new: {AI_wins} \nAI: {random_wins} \nDraws:: {draws}")
+    print(f"{players[0].name}: {p1_wins} \n{players[1].name}: {p2_wins} \nDraws: {draws}")
 
 if __name__ == '__main__':
     main()
