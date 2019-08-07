@@ -4,7 +4,6 @@ import random
 
 WINNING_SCORE = 4
 
-
 # Check the win condition based on the last played column
 def max_connecting(board):
     if np.all(board == 0):
@@ -54,6 +53,14 @@ def max_connecting(board):
 
     return max_connecting
 
+
+# Convert move order board to simpler 'colours' board
+def orders_to_colours(board):
+    # Turns are alternate so we can just find odd and even numbers
+    colour_board = board % 2
+    # Then subtract 1 from the zeroes to help with win condition checking
+    colour_board[ colour_board ==0 ] = -1
+    return colour_board
 
 # Print the board
 def print_board(board):
@@ -214,6 +221,7 @@ def play_connect_four(start_player, show=True):
     else:
         active_player = 1
 
+    turn_count = 0
     max_connect = 0
     while max_connect < WINNING_SCORE:
         if show:
@@ -229,14 +237,14 @@ def play_connect_four(start_player, show=True):
                 column_choice = make_move_AIv2(board)
 
         # find the lowest empty slot
-        turn_taken = False
+        old_turn_count = turn_count
         for y in range(board.shape[0]-1, -1, -1):
-            if turn_taken == False:
+            if turn_count == old_turn_count:
                 slot = board[y, column_choice]
                 if board[y, column_choice] == 0:
                     board[y, column_choice] = active_player
                     active_player *= -1
-                    turn_taken = True
+                    turn_count += 1
             else:
                 break
 
