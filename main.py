@@ -1,12 +1,14 @@
 import numpy as np
 import random
-
+import pandas as pd
 
 WINNING_SCORE = 4
+RESULTS_FILE = 'results.csv'
 
 
 # Define a player
 class Player():
+    # Players need a name and a function that decides their moves
     def __init__(self, name, logic):
         self.name = name
         self.logic = logic
@@ -223,7 +225,7 @@ def make_move_human(board):
     return column_choice
 
 
-def play_connect_four(players, start_player, show=True):
+def play_connect_four(players, start_player_index, show=True):
 
     # Set up a board and initialise to zeros
     # Note that board dimensions are [y, x]
@@ -236,7 +238,7 @@ def play_connect_four(players, start_player, show=True):
     if human_player:
         show = True
 
-    if start_player == 0:
+    if start_player_index == 0:
         active_player = -1
         start_player = -1
     else:
@@ -287,19 +289,26 @@ def play_connect_four(players, start_player, show=True):
         loser = players[0].name
     if max_connect == 2*WINNING_SCORE:
         winner = "Draw"
+        loser = "Draw"
 
     #if show:
-    print_board(board)
+    #print_board(board)
     print(colour_board)
     print("GAME OVER: " + winner + " wins in " + str(turn_count) + " moves against " + loser)
+    # create a data frame of the results
+    results_df = pd.DataFrame( {'p1': [players[0].name],
+                                'p2': [players[1].name],
+                                'first_turn': [players[start_player_index].name],
+                                'winner': [winner],
+                                'turn_count': [turn_count],
+                                'final_board_state': [board]})
 
-    return winner, turn_count
-
+    return results_df
 
 # Main gameloop
 def main():
     # Set number of games to play
-    num_games = 100
+    num_games = 10
 
     # Assign two players
     players = []
@@ -310,17 +319,19 @@ def main():
     p1_wins = 0
     p2_wins = 0
     draws = 0
+    results_df = pd.DataFrame()
 
     # Play the games & update stats
     for i in range(num_games):
         start_player = i%2
-        winner, turn_count = play_connect_four(players, start_player, False)
-        if winner == players[0].name:
-            p1_wins += 1
-        elif winner == players[1].name:
-            p2_wins += 1
-        else:
-            draws += 1
+        results = play_connect_four(players, start_player, False)
+        results_df = results_df.append(results)
+
+    p1_wins = results_df[results_df['winner'] == players[0].name].shape[0]
+    p2_wins = results_df[results_df['winner'] == players[1].name].shape[0]
+    draws = results_df[results_df['winner'] == 'Draw'].shape[0]
+
+    results_df.to_csv(RESULTS_FILE, mode='a', header=True)
 
     print(f"{players[0].name}: {p1_wins} \n{players[1].name}: {p2_wins} \nDraws: {draws}")
 
